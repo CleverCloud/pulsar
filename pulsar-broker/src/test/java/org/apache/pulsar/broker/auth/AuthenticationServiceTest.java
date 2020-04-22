@@ -64,6 +64,7 @@ public class AuthenticationServiceTest {
         when(request.getRemoteAddr()).thenReturn("192.168.1.1");
         when(request.getRemotePort()).thenReturn(8080);
         when(request.getHeader(anyString())).thenReturn("data");
+        when(request.getHeader("Auth-Method-Name")).thenReturn(null);
         String result = service.authenticateHttpRequest(request);
         assertEquals(result, s_authentication_success);
         service.close();
