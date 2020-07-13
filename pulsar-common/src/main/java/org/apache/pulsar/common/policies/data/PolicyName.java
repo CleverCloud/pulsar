@@ -33,6 +33,7 @@ public enum PolicyName {
     MAX_PRODUCERS,
     MAX_UNACKED,
     OFFLOAD,
+    PARTITION,
     PERSISTENCE,
     RATE,
     RETENTION,

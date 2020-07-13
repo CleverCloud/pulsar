@@ -470,6 +470,54 @@ public class AuthorizationService {
      * Grant authorization-action permission on a topic to the given client
      *
      * @param topicName
+     * @param policy
+     * @param operation
+     * @param originalPrincipal
+     * @param clientAppId
+     * @param clientAuthData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName, PolicyName policy, PolicyOperation operation, String originalPrincipal, String clientAppId, AuthenticationDataHttps clientAuthData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            if (provider != null) {
+                return provider.isSuperUser(clientAppId, clientAuthData, conf).thenComposeAsync(isSuperUser -> {
+                    if (isSuperUser) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        return provider.allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal, clientAppId, clientAuthData);
+                    }
+                });
+            }
+
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTopicPolicyOperationAsync"));
+    }
+
+    public Boolean allowTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation, String originalPrincipal, String clientAppId, AuthenticationDataHttps clientAuthData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal, clientAppId, clientAuthData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowTopicPolicyOperation");
+    }
+
+    /**
+     * Grant authorization-action permission on a topic to the given client
+     *
+     * @param topicName
      * @param operation
      * @param role
      * @param authData

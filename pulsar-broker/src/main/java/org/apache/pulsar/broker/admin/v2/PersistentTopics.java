@@ -44,10 +44,14 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
 import io.swagger.annotations.Api;
@@ -208,7 +212,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateGlobalNamespaceOwnership(tenant,namespace);
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);

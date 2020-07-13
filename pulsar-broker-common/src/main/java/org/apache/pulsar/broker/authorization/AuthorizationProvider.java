@@ -326,4 +326,31 @@ public interface AuthorizationProvider extends Closeable {
             throw new RestException(e.getCause());
         }
     }
+
+    /**
+     * Grant authorization-action permission on a topic to the given client
+     * @param topicName
+     * @param originalRole role not overriden by proxy role if request do pass through proxy
+     * @param role originalRole | proxyRole if the request didn't pass through proxy
+     * @param operation
+     * @param authData
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName, PolicyName policy,
+                                                                          PolicyOperation operation, String originalRole,
+                                                                          String role, AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("TopicPolicyOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation,
+                                                  String originalRole, String role, AuthenticationDataSource authData) {
+        try {
+            return allowTopicPolicyOperationAsync(topicName, policy, operation, originalRole, role, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
+    }
 }
