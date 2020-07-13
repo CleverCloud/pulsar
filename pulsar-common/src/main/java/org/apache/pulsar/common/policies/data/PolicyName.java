@@ -35,6 +35,7 @@ public enum PolicyName {
     DEDUPLICATION_SNAPSHOT,
     MAX_UNACKED,
     OFFLOAD,
+    PARTITION,
     PERSISTENCE,
     RATE,
     RETENTION,
