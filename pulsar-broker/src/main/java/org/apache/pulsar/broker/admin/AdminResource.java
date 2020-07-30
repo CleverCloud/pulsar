@@ -63,9 +63,11 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -602,7 +604,7 @@ public abstract class AdminResource extends PulsarWebResource {
             checkConnect(topicName);
         } catch (WebApplicationException e) {
             try {
-                validateAdminAccessForTenant(topicName.getTenant());
+                validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_TOPIC);
             } catch (Exception ex) {
                 return FutureUtil.failedFuture(ex);
             }
@@ -631,7 +633,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             checkConnect(topicName);
         } catch (WebApplicationException e) {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_TOPIC);
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
@@ -746,7 +748,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
