@@ -49,6 +49,4 @@ public enum TopicOperation {
     UNSUBSCRIBE,
 
     GET_STATS,
-
-    SKIP_MESSAGES,
 }

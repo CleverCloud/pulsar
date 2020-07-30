@@ -561,6 +561,36 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
+            case COMPACT: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case EXPIRE_MESSAGES: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case OFFLOAD: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case PEEK_MESSAGES: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                break;
+            case RESET_CURSOR: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case SKIP: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case TERMINATE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case UNLOAD: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case ADD_BUNDLE_RANGE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case GET_BUNDLE_RANGE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case DELETE_BUNDLE_RANGE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
+                break;
+            case SUBSCRIBE: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                break;
+            case GET_SUBSCRIPTIONS: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                break;
+            case UNSUBSCRIBE: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                break;
+            case GET_STATS: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                break;
             default: isAuthorizedFuture = FutureUtil.failedFuture(
                     new IllegalStateException("TopicOperation is not supported."));
         }

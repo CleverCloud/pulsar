@@ -1361,7 +1361,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalSkipAllMessagesForNonPartitionedTopic(AsyncResponse asyncResponse, String subName, boolean authoritative) {
         try {
-            validateTopicOperation(topicName, TopicOperation.SKIP_MESSAGES);
+            validateTopicOperation(topicName, TopicOperation.SKIP);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
                 if (ex != null) {
@@ -1402,7 +1402,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
         }
-        validateTopicOperation(topicName, TopicOperation.SKIP_MESSAGES);
+        validateTopicOperation(topicName, TopicOperation.SKIP);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
