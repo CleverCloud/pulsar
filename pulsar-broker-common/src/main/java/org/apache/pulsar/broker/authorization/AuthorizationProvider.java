@@ -506,7 +506,7 @@ public interface AuthorizationProvider extends Closeable {
                                                                       PolicyOperation operation,
                                                                       AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-                new IllegalStateException("TopicOperation is not supported by the Authorization provider you are using."));
+                new IllegalStateException("TopicPolicyOperation is not supported by the Authorization provider you are using."));
     }
 
     default Boolean allowTopicPolicyOperation(TopicName topicName,
