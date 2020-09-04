@@ -566,13 +566,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case COMPACT: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
                 break;
-            case EXPIRE_MESSAGES: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
+            case EXPIRE_MESSAGES: isAuthorizedFuture = canConsumeAsync(topicName, role, authData);
                 break;
             case OFFLOAD: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
                 break;
             case PEEK_MESSAGES: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
-            case RESET_CURSOR: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
+            case RESET_CURSOR: isAuthorizedFuture = canConsumeAsync(topicName, role, authData);
                 break;
             case SKIP: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
