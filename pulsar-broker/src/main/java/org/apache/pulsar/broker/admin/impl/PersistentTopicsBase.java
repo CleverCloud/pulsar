@@ -1931,6 +1931,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalResetCursorForNonPartitionedTopic(AsyncResponse asyncResponse, String subName, long timestamp,
                                        boolean authoritative) {
         try {
+            validateTopicOwnership(topicName, authoritative);
             validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
             validateTopicOwnership(topicName, authoritative);
             log.info("[{}] [{}] Received reset cursor on subscription {} to time {}",
@@ -2145,6 +2146,7 @@ public class PersistentTopicsBase extends AdminResource {
                     "Reset-cursor at position is not allowed for partitioned-topic"));
             return;
         } else {
+            validateTopicOwnership(topicName, authoritative);
             validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
             validateTopicOwnership(topicName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -2996,6 +2998,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw new IllegalStateException(msg);
         }
 
+        validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
 
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
@@ -3529,6 +3532,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGetLastMessageId(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
+            validateTopicOwnership(topicName, authoritative);
             validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
             topic = getTopicReference(topicName);
         } catch (WebApplicationException wae) {
