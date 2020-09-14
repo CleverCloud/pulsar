@@ -981,8 +981,8 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
             validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.UNLOAD);
             topic = getTopicReference(topicName);
         } catch (Exception e) {
             log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
