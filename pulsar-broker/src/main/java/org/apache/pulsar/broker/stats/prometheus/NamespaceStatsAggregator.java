@@ -455,7 +455,8 @@ public class NamespaceStatsAggregator {
 
     private static void metric(MetricsSender metricsSender, String cluster, String name, long value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{cluster=\"" + cluster + "\"} " + value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
+                "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -469,8 +470,8 @@ public class NamespaceStatsAggregator {
     private static void metric(MetricsSender metricsSender, String cluster, String namespace, String name,
                                long value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\"} " +
-                value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
+                "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -484,8 +485,8 @@ public class NamespaceStatsAggregator {
     private static void metric(MetricsSender metricsSender, String cluster, String namespace, String name,
                                double value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\"} " +
-                value + " " + System.currentTimeMillis();
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
+                "\",namespace=\"" + namespace + "\"} " + value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
 
@@ -500,8 +501,8 @@ public class NamespaceStatsAggregator {
     private static void metricWithRemoteCluster(MetricsSender metricsSender, String cluster, String namespace,
                                                 String name, String remoteCluster, double value) {
         String head = TopicStats.metricType(name);
-        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace +
-                "\",remote_cluster=\"" + remoteCluster + "\"} " +
+        String body = name + "{broker=\"" + metricsSender.getComponentLabel() + "\",cluster=\"" + cluster +
+                "\",namespace=\"" + namespace + "\",remote_cluster=\"" + remoteCluster + "\"} " +
                 value + " " + System.currentTimeMillis();
         metricsSender.send(new PulsarMetrics(head, body));
     }
