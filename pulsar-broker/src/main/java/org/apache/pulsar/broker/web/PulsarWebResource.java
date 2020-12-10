@@ -874,23 +874,29 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
             Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(), clientAuthData());
+                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                            clientAuthData());
 
             if (!isAuthorized) {
-                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateTopicPolicyOperation for" +
-                        " operation [%s] on topic [%s] on policy [%s]", operation.toString(), topicName, policy.toString()));
+                throw new RestException(Status.FORBIDDEN,
+                        String.format("Unauthorized to validateTopicPolicyOperation for"
+                                        + " operation [%s] on topic [%s] on policy [%s]", operation.toString(),
+                                topicName,
+                                policy.toString()));
             }
         }
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+            && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
@@ -899,8 +905,9 @@ public abstract class PulsarWebResource {
                     .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), clientAuthData());
 
             if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for" +
-                        " operation [%s] on topic [%s]", operation.toString(), topicName));
+                throw new RestException(Status.UNAUTHORIZED,
+                        String.format("Unauthorized to validateTopicOperation for"
+                                + " operation [%s] on topic [%s]", operation.toString(), topicName));
             }
         }
     }
