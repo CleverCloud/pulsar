@@ -91,6 +91,9 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.sender.MetricsSender;
+import org.apache.pulsar.broker.stats.sender.MetricsSenderConfiguration;
+import org.apache.pulsar.broker.stats.sender.PulsarMetricsSender;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -206,6 +209,7 @@ public class PulsarService implements AutoCloseable {
     private final ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
+    private MetricsSender metricsSender;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -375,6 +379,11 @@ public class PulsarService implements AutoCloseable {
 
             if (transactionBufferClient != null) {
                 transactionBufferClient.close();
+            }
+
+            if (metricsSender != null) {
+                metricsSender.close();
+                metricsSender = null;
             }
 
             state = State.Closed;
@@ -630,6 +639,12 @@ public class PulsarService implements AutoCloseable {
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
+
+            if (config.isMetricsSenderEnabled()) {
+                LOG.info("Starting Metrics Sender");
+                this.metricsSender = new PulsarMetricsSender(this, new MetricsSenderConfiguration(this.config));
+                this.metricsSender.start();
+            }
 
             state = State.Started;
         } catch (Exception e) {
