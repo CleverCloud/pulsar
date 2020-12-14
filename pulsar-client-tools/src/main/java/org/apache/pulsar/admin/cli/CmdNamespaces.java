@@ -1609,15 +1609,15 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--driver", "-d"},
-                description = "Driver to use to offload old data to long term storage, " +
-                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                description = "Driver to use to offload old data to long term storage, "
+                        + "(Possible values: S3, aws-s3, google-cloud-storage)",
                 required = true)
         private String driver;
 
         @Parameter(
                 names = {"--region", "-r"},
-                description = "The long term storage region, " +
-                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                description = "The long term storage region, "
+                         + "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
                 required = false)
         private String region;
 
@@ -1629,8 +1629,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--endpoint", "-e"},
-                description = "Alternative endpoint to connect to, " +
-                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                description = "Alternative endpoint to connect to, "
+                        + "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
                 required = false)
         private String endpoint;
 
@@ -1715,8 +1715,8 @@ public class CmdNamespaces extends CmdBase {
 
             if (!driverSupported(driver)) {
                 throw new ParameterException(
-                        "The driver " + driver + " is not supported, " +
-                                "(Possible values: S3, aws-s3, google-cloud-storage).");
+                        "The driver " + driver + " is not supported, "
+                        + "(Possible values: S3, aws-s3, google-cloud-storage).");
             }
 
             if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
