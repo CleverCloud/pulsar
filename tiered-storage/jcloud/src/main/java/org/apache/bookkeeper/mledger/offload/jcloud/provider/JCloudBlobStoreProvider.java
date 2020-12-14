@@ -19,8 +19,10 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.GCS_ACCOUNT_KEY_FILE_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ID_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
+import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_SECRET_FIELD;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
@@ -281,7 +283,20 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         if (config.getCredentials() == null) {
             AWSCredentials awsCredentials = null;
             try {
-                if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
+                if (!Strings.isNullOrEmpty(config.getConfigProperty(S3_ID_FIELD))
+                    && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
+                    awsCredentials = new AWSCredentials() {
+                        @Override
+                        public String getAWSAccessKeyId() {
+                            return config.getConfigProperty(S3_ID_FIELD);
+                        }
+
+                        @Override
+                        public String getAWSSecretKey() {
+                            return config.getConfigProperty(S3_SECRET_FIELD);
+                        }
+                    };
+                } else if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
                 } else {
                     awsCredentials =
