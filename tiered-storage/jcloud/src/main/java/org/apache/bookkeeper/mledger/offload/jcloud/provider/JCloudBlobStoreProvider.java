@@ -26,6 +26,8 @@ import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorag
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
@@ -285,17 +287,10 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             try {
                 if (!Strings.isNullOrEmpty(config.getConfigProperty(S3_ID_FIELD))
                     && !Strings.isNullOrEmpty(config.getConfigProperty(S3_SECRET_FIELD))) {
-                    awsCredentials = new AWSCredentials() {
-                        @Override
-                        public String getAWSAccessKeyId() {
-                            return config.getConfigProperty(S3_ID_FIELD);
-                        }
-
-                        @Override
-                        public String getAWSSecretKey() {
-                            return config.getConfigProperty(S3_SECRET_FIELD);
-                        }
-                    };
+                    awsCredentials = new AWSStaticCredentialsProvider(
+                            new BasicAWSCredentials(
+                                config.getConfigProperty(S3_ID_FIELD),
+                                config.getConfigProperty(S3_SECRET_FIELD))).getCredentials();
                 } else if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
                 } else {
