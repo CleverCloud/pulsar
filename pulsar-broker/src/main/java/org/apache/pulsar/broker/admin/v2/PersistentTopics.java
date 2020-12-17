@@ -1073,6 +1073,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
+            validateTopicOwnership(topicName, authoritative);
             internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
