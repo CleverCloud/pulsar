@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 
@@ -483,6 +484,38 @@ public interface AuthorizationProvider extends Closeable {
                                         AuthenticationDataSource authData) {
         try {
             return allowTopicOperationAsync(topicName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
+    }
+
+    /**
+     * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on topic's <tt>policy</tt>.
+     *
+     * @param topic topic name
+     * @param role role name
+     * @param operation topic operation
+     * @param authData authenticated data
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic,
+                                                                      String role,
+                                                                      PolicyName policy,
+                                                                      PolicyOperation operation,
+                                                                      AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("TopicPolicyOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowTopicPolicyOperation(TopicName topicName,
+                                              String role,
+                                              PolicyName policy,
+                                              PolicyOperation operation,
+                                              AuthenticationDataSource authData) {
+        try {
+            return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {

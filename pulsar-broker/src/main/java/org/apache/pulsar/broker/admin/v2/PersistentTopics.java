@@ -64,6 +64,8 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -231,7 +233,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateGlobalNamespaceOwnership(tenant, namespace);
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -569,7 +571,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
+        validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         checkTopicLevelPolicyEnable();
         if (topicName.isGlobal()) {
@@ -636,7 +638,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Delayed delivery policies for the specified topic")
                     DelayedDeliveryPolicies deliveryPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
+        validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         checkTopicLevelPolicyEnable();
         if (topicName.isGlobal()) {
@@ -1072,6 +1074,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
+            validateTopicOwnership(topicName, authoritative);
             internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);

@@ -557,28 +557,65 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                AuthenticationDataSource authData) {
         CompletableFuture<Boolean> isAuthorizedFuture;
 
-        switch (operation) {
-            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
-                break;
-            case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
-                break;
-            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
-                break;
-            default: isAuthorizedFuture = FutureUtil.failedFuture(
-                    new IllegalStateException("TopicOperation is not supported."));
+        try {
+            TenantInfo tenantInfo = configCache.propertiesCache().get(path(POLICIES, topicName.getTenant())).get();
+
+            switch (operation) {
+                case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                    break;
+                case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
+                    break;
+                case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case COMPACT: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case EXPIRE_MESSAGES: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case OFFLOAD: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case PEEK_MESSAGES: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case RESET_CURSOR: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case SKIP: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case TERMINATE: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
+                    break;
+                case UNLOAD: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case ADD_BUNDLE_RANGE: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case GET_BUNDLE_RANGE: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case DELETE_BUNDLE_RANGE: isAuthorizedFuture = isTenantAdmin(topicName.getTenant(), role, tenantInfo, authData);
+                    break;
+                case SUBSCRIBE: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case GET_SUBSCRIPTIONS: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                    break;
+                case UNSUBSCRIBE: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                    break;
+                case GET_STATS: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                    break;
+                default: isAuthorizedFuture = FutureUtil.failedFuture(
+                        new IllegalStateException("TopicOperation is not supported."));
+            }
+
+            CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
+
+            return isSuperUserFuture
+                    .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Verify if role {} is allowed to {} to topic {}:"
+                                            + " isSuperUser={}, isAuthorized={}",
+                                    role, operation, topicName, isSuperUser, isAuthorized);
+                        }
+                        return isSuperUser || isAuthorized;
+                    });
+        } catch (Exception e) {
+            log.error("Authorization required to check TenantInfo and failed to get tenant {}", topicName.getTenant(), e);
+            return CompletableFuture.completedFuture(false);
         }
-
-        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
-
-        return isSuperUserFuture
-                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Verify if role {} is allowed to {} to topic {}:"
-                                + " isSuperUser={}, isAuthorized={}",
-                            role, operation, topicName, isSuperUser, isAuthorized);
-                    }
-                    return isSuperUser || isAuthorized;
-                });
     }
 
     private static String path(String... parts) {

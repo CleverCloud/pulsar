@@ -104,6 +104,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -111,10 +112,13 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -136,7 +140,7 @@ public class PersistentTopicsBase extends AdminResource {
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
     protected List<String> internalGetList() {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
@@ -170,7 +174,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected List<String> internalGetPartitionedTopicList() {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
@@ -370,7 +374,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
-        validateWriteOperationOnTopic(authoritative);
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
+        validateTopicOwnership(topicName, authoritative);
 
         try {
             pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
@@ -448,8 +453,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
-        validateWriteOperationOnTopic(authoritative);
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC);
         validateNonPartitionTopicName(topicName.getLocalName());
+
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -484,7 +490,9 @@ public class PersistentTopicsBase extends AdminResource {
      */
     protected void internalUpdatePartitionedTopic(int numPartitions,
                                                   boolean updateLocalTopicOnly, boolean authoritative) {
-        validateWriteOperationOnTopic(authoritative);
+        validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
+        validateTopicOwnership(topicName, authoritative);
+
         // Only do the validation if it's the first hop.
         if (!updateLocalTopicOnly) {
             validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
@@ -636,7 +644,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
                                                   boolean force, boolean deleteSchema) {
         try {
-            validateWriteOperationOnTopic(authoritative);
+            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
+            validateTopicOwnership(topicName, authoritative);
         } catch (WebApplicationException wae) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
@@ -964,8 +973,8 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
             validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.UNLOAD);
             topic = getTopicReference(topicName);
         } catch (Exception e) {
             log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
@@ -993,7 +1002,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean deleteSchema) {
-        validateWriteOperationOnTopic(authoritative);
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
+        validateTopicOwnership(topicName, authoritative);
 
         try {
             pulsar().getBrokerService().deleteTopic(topicName.toString(), false, deleteSchema).get();
@@ -1074,7 +1084,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
         try {
-            validateReadOperationOnTopic(authoritative);
+            validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS);
+            validateTopicOwnership(topicName, authoritative);
             Topic topic = getTopicReference(topicName);
             final List<String> subscriptions = Lists.newArrayList();
             topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
@@ -1094,7 +1105,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog) {
-        validateAdminAndClientPermission();
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -1104,15 +1115,17 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
-        validateAdminAndClientPermission();
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
         try {
-            boolean includeMetadata = metadata && hasSuperUserAccess();
-            return topic.getInternalStats(includeMetadata).get();
+            if (metadata) {
+                validateTopicOperation(topicName, TopicOperation.GET_METADATA);
+            }
+            return topic.getInternalStats(metadata).get();
         } catch (Exception e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR,
                     (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
@@ -1198,7 +1211,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse asyncResponse) {
         String managedLedger;
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOperation(topicName, TopicOperation.GET_STATS);
             managedLedger = topicName.getPersistenceNamingEncoding();
         } catch (Exception e) {
             log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, e);
@@ -1366,6 +1379,7 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
         }
+        validateTopicOwnership(topicName, authoritative);
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
             internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
@@ -1425,7 +1439,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                   String subName, boolean authoritative) {
         try {
-            validateAdminAccessForSubscriber(subName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE);
             Topic topic = getTopicReference(topicName);
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
@@ -1520,7 +1534,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopicForcefully(AsyncResponse asyncResponse,
                                                                             String subName, boolean authoritative) {
         try {
-            validateAdminAccessForSubscriber(subName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE);
             Topic topic = getTopicReference(topicName);
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
@@ -1614,7 +1628,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalSkipAllMessagesForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                String subName, boolean authoritative) {
         try {
-            validateAdminAccessForSubscriber(subName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.SKIP);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
                 if (ex != null) {
@@ -1664,7 +1678,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
         }
-        validateAdminAccessForSubscriber(subName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.SKIP);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
@@ -1759,8 +1773,8 @@ public class PersistentTopicsBase extends AdminResource {
         // validate ownership and redirect if current broker is not owner
         PersistentTopic topic;
         try {
-            validateWriteOperationOnTopic(authoritative);
-
+            validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
+            validateTopicOwnership(topicName, authoritative);
             topic = (PersistentTopic) getTopicReference(topicName);
         } catch (WebApplicationException wae) {
             if (log.isDebugEnabled()) {
@@ -1909,9 +1923,12 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalResetCursorForNonPartitionedTopic(AsyncResponse asyncResponse, String subName, long timestamp,
                                        boolean authoritative) {
         try {
-            validateAdminAccessForSubscriber(subName, authoritative);
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
+            validateTopicOwnership(topicName, authoritative);
             log.info("[{}] [{}] Received reset cursor on subscription {} to time {}",
                     clientAppId(), topicName, subName, timestamp);
+
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
@@ -2057,7 +2074,7 @@ public class PersistentTopicsBase extends AdminResource {
             AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
         try {
-            validateAdminAccessForSubscriber(subscriptionName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
 
             boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
             PersistentTopic topic = (PersistentTopic) pulsar().getBrokerService()
@@ -2121,9 +2138,9 @@ public class PersistentTopicsBase extends AdminResource {
                     "Reset-cursor at position is not allowed for partitioned-topic"));
             return;
         } else {
-            validateAdminAccessForSubscriber(subName, authoritative);
-            // will redirect if the topic not owned by current broker
-            validateReadOperationOnTopic(authoritative);
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.RESET_CURSOR);
+            validateTopicOwnership(topicName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
@@ -2247,7 +2264,12 @@ public class PersistentTopicsBase extends AdminResource {
                                               boolean authoritative) {
         try {
             // will redirect if the topic not owned by current broker
-            validateReadOperationOnTopic(authoritative);
+            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
+            validateTopicOwnership(topicName, authoritative);
+
+            if (topicName.isGlobal()) {
+                validateGlobalNamespaceOwnership(namespaceName);
+            }
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
@@ -2279,13 +2301,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
-        verifyReadOperation(authoritative);
+        validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
                 authoritative, false).partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
-        validateAdminAccessForSubscriber(subName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
                     subName);
@@ -2772,14 +2795,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected MessageId internalTerminate(boolean authoritative) {
+        validateTopicOperation(topicName, TopicOperation.TERMINATE);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a partitioned topic is not allowed");
-        }
-        validateWriteOperationOnTopic(authoritative);
+        validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
         try {
             return ((PersistentTopic) topic).terminate().get();
@@ -2790,10 +2810,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalTerminatePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOperation(topicName, TopicOperation.TERMINATE);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-      validateAdminOperationOnTopic(authoritative);
+        validateTopicOwnership(topicName, authoritative);
 
       List<MessageId> messageIds = new ArrayList<>();
 
@@ -2919,8 +2940,8 @@ public class PersistentTopicsBase extends AdminResource {
             throw new IllegalStateException(msg);
         }
 
-        // validate ownership and redirect if current broker is not owner
-        validateAdminAccessForSubscriber(subName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
 
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName, subName);
@@ -3032,7 +3053,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalTriggerCompactionNonPartitionedTopic(boolean authoritative) {
-        validateWriteOperationOnTopic(authoritative);
+        validateTopicOperation(topicName, TopicOperation.COMPACT);
+        validateTopicOwnership(topicName, authoritative);
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
@@ -3046,13 +3068,15 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
-        validateReadOperationOnTopic(authoritative);
+        validateTopicOperation(topicName, TopicOperation.COMPACT);
+        validateTopicOwnership(topicName, authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.compactionStatus();
     }
 
     protected void internalTriggerOffload(boolean authoritative, MessageIdImpl messageId) {
-        validateWriteOperationOnTopic(authoritative);
+        validateTopicOperation(topicName, TopicOperation.OFFLOAD);
+        validateTopicOwnership(topicName, authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
             topic.triggerOffload(messageId);
@@ -3065,7 +3089,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected OffloadProcessStatus internalOffloadStatus(boolean authoritative) {
-        validateReadOperationOnTopic(authoritative);
+        validateTopicOperation(topicName, TopicOperation.OFFLOAD);
+        validateTopicOwnership(topicName, authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.offloadStatus();
     }
@@ -3449,7 +3474,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGetLastMessageId(AsyncResponse asyncResponse, boolean authoritative) {
         Topic topic;
         try {
-            validateReadOperationOnTopic(authoritative);
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
             topic = getTopicReference(topicName);
         } catch (WebApplicationException wae) {
             if (log.isDebugEnabled()) {

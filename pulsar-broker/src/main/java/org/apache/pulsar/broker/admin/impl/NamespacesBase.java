@@ -851,7 +851,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionExpirationTime(int expirationTime) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (expirationTime < 0) {
@@ -893,7 +893,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
                                                 AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
@@ -965,7 +965,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveAutoTopicCreation(AsyncResponse asyncResponse) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -1027,7 +1027,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetAutoSubscriptionCreation(
             AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -1091,7 +1091,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         // Force to read the data s.t. the watch to the cache content is setup.
