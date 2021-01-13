@@ -1270,6 +1270,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1286,6 +1287,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1301,6 +1303,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
                 null, null,
+                null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
@@ -1315,6 +1318,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPolicies.create("S3", "", "", "",
+                null, null,
                 null, null,
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
