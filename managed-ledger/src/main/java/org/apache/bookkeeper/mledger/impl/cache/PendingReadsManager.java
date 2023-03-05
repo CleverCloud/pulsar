@@ -100,7 +100,11 @@ public class PendingReadsManager {
         private final long startEntry;
         private final long endEntry;
         long size() {
-            return endEntry - startEntry + 1;
+            if (startEntry < endEntry) {
+                return endEntry - startEntry + 1;
+            } else {
+                return startEntry -  endEntry + 1;
+            }
         }
 
 

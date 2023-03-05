@@ -724,7 +724,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
-                option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
+                option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(), option.isReadReverse(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch());
@@ -735,6 +735,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           String consumerName, boolean isDurable,
                                                           MessageId startMessageId,
                                                           Map<String, String> metadata, boolean readCompacted,
+                                                          boolean readReverse,
                                                           InitialPosition initialPosition,
                                                           long startMessageRollbackDurationSec,
                                                           boolean replicatedSubscriptionStateArg,
@@ -823,12 +824,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
+                    startMessageRollbackDurationSec, readCompacted, readReverse, subscriptionProperties);
 
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch);
+                        readCompacted, readReverse, keySharedMeta, startMessageId, consumerEpoch);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     if (subscription instanceof PersistentSubscription persistentSubscription) {
@@ -906,7 +907,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  boolean replicatedSubscriptionStateArg,
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
+                isDurable, startMessageId, metadata, readCompacted, false, initialPosition,
+                startMessageRollbackDurationSec,
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
+                                                 SubType subType, int priorityLevel, String consumerName,
+                                                 boolean isDurable, MessageId startMessageId,
+                                                 Map<String, String> metadata, boolean readCompacted,
+                                                 boolean readReverse, InitialPosition initialPosition,
+                                                 long startMessageRollbackDurationSec,
+                                                 boolean replicatedSubscriptionStateArg,
+                                                 KeySharedMeta keySharedMeta) {
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, readReverse, initialPosition,
+                startMessageRollbackDurationSec,
                 replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
     }
 
@@ -972,7 +989,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
-            boolean isReadCompacted, Map<String, String> subscriptionProperties) {
+            boolean isReadCompacted, boolean isReadReverse, Map<String, String> subscriptionProperties) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",
                 topic, subscriptionName, startMessageId, subscriptionProperties);
 
@@ -1007,7 +1024,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 ManagedCursor cursor = null;
                 try {
                     cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition,
-                            isReadCompacted);
+                            isReadCompacted, isReadReverse);
                 } catch (ManagedLedgerException e) {
                     return FutureUtil.failedFuture(e);
                 }

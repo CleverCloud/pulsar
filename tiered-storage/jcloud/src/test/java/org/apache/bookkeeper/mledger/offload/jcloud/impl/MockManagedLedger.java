@@ -129,6 +129,13 @@ public class MockManagedLedger implements ManagedLedger {
         return null;
     }
 
+    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
+                                             CommandSubscribe.InitialPosition initialPosition,
+                                             boolean isReadCompacted, boolean isReadReverse)
+            throws ManagedLedgerException {
+        return null;
+    }
+
     @Override
     public void asyncDeleteCursor(String name, AsyncCallbacks.DeleteCursorCallback callback, Object ctx) {
 

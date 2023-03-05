@@ -309,8 +309,8 @@ public class RangeEntryCacheImpl implements EntryCache {
 
         final long ledgerId = lh.getId();
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        final PositionImpl firstPosition = PositionImpl.get(lh.getId(), firstEntry);
-        final PositionImpl lastPosition = PositionImpl.get(lh.getId(), lastEntry);
+        final PositionImpl firstPosition = PositionImpl.get(lh.getId(), lastEntry);
+        final PositionImpl lastPosition = PositionImpl.get(lh.getId(), firstEntry);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Reading entries range ledger {}: {} to {}", ml.getName(), ledgerId, firstEntry, lastEntry);
@@ -426,7 +426,7 @@ public class RangeEntryCacheImpl implements EntryCache {
      */
     CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
                                                        long firstEntry, long lastEntry, boolean shouldCacheEntry) {
-        final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
+        final int entriesToRead = (int) (firstEntry - lastEntry) + 1;
         CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
                 .thenApply(
                         ledgerEntries -> {

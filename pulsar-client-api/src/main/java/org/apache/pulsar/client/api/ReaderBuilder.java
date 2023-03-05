@@ -270,6 +270,18 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> readCompacted(boolean readCompacted);
 
     /**
+     * If enabled, the reader will read messages from the startMessageId to the oldest message
+     *
+     * <p>readCompacted can only be enabled when reading from a persistent topic. Attempting to enable it
+     * on non-persistent topics will lead to the reader create call throwing a {@link PulsarClientException}.
+     *
+     * @param readReverse
+     *            whether to read using reverse cursor
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> readReverse(boolean readReverse);
+
+    /**
      * Set key hash range of the reader, broker will only dispatch messages which hash of the message key contains by
      * the specified key hash range. Multiple key hash ranges can be specified on a reader.
      *

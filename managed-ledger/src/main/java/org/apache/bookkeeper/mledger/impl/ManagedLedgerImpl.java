@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.impl.PositionImpl.LATEST;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
@@ -129,6 +130,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -1094,16 +1096,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             startCursorPosition,
             "non-durable-cursor-" + UUID.randomUUID());
     }
-
     @Override
     public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName)
             throws ManagedLedgerException {
-        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false);
+        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false, false);
+    }
+
+    @Override
+    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
+                                             InitialPosition initialPosition, boolean isReadCompacted)
+            throws ManagedLedgerException {
+        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, isReadCompacted, false);
     }
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName,
-                                             InitialPosition initialPosition, boolean isReadCompacted)
+                                             InitialPosition initialPosition, boolean isReadCompacted,
+                                             boolean isReadReverse)
             throws ManagedLedgerException {
         Objects.requireNonNull(cursorName, "cursor name can't be null");
         checkManagedLedgerIsOpen();
@@ -1118,7 +1127,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, config, this, cursorName,
-                (PositionImpl) startCursorPosition, initialPosition, isReadCompacted);
+                (PositionImpl) startCursorPosition, initialPosition, isReadCompacted, isReadReverse);
         cursor.setActive();
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
@@ -1849,9 +1858,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             LedgerInfo ledgerInfo = ledgers.get(ledgerId);
             if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
+                if (opReadEntry.readPosition.getLedgerId() - 1 < 0) {
+                    return;
+                }
                 // Cursor is pointing to an empty ledger, there's no need to try opening it. Skip this ledger and
                 // move to the next one
-                opReadEntry.updateReadPosition(new PositionImpl(opReadEntry.readPosition.getLedgerId() + 1, 0));
+                opReadEntry.updateReadPosition(new PositionImpl(opReadEntry.readPosition.getLedgerId() - 1, -1));
                 opReadEntry.checkReadCompletion();
                 return;
             }
@@ -2009,11 +2021,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         // Perform the read
-        long firstEntry = opReadEntry.readPosition.getEntryId();
-        long lastEntryInLedger;
+        long firstEntry = 0;
+        //long lastEntryInLedger = opReadEntry.readPosition.getEntryId();
+        long lastEntryInLedger = ledger.getLastAddConfirmed();
 
         PositionImpl lastPosition = lastConfirmedEntry;
 
+        /*
         if (ledger.getId() == lastPosition.getLedgerId()) {
             // For the current ledger, we only give read visibility to the last entry we have received a confirmation in
             // the managed ledger layer
@@ -2027,6 +2041,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (ledger.getId() == opReadEntry.maxPosition.getLedgerId()) {
             lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
         }
+         */
 
         if (firstEntry > lastEntryInLedger) {
             if (log.isDebugEnabled()) {
@@ -2037,9 +2052,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (currentLedger == null || ledger.getId() != currentLedger.getId()) {
                 // Cursor was placed past the end of one ledger, move it to the
                 // beginning of the next ledger
-                Long nextLedgerId = ledgers.ceilingKey(ledger.getId() + 1);
+                Long nextLedgerId = ledgers.ceilingKey(ledger.getId() - 1);
                 if (nextLedgerId != null) {
-                    opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, 0));
+                    opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, -1));
                 } else {
                     opReadEntry.updateReadPosition(new PositionImpl(ledger.getId() + 1, 0));
                 }
@@ -2051,7 +2066,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
+        //long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
+        //long lastEntry = 0;
+        long lastEntry = lastEntryInLedger;
 
         // Filer out and skip unnecessary read entry
         if (opReadEntry.skipCondition != null) {
@@ -2088,7 +2105,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
                     lastEntry);
         }
-        asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+        asyncReadEntry(ledger, lastEntry, firstEntry, opReadEntry, opReadEntry.ctx);
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {
@@ -3573,9 +3590,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers.ceilingKey(ledgerId + 1);
     }
 
+    public PositionImpl getPreviousValidPosition(final PositionImpl position) {
+        return getValidPositionBeforeSkippedEntries(position, 1);
+    }
+
+    public PositionImpl getValidPositionBeforeSkippedEntries(final PositionImpl position, int skippedEntryNum) {
+        PositionImpl skippedPosition = position.getPositionBeforeEntries(skippedEntryNum);
+        while (!isValidPosition(skippedPosition)) {
+            Long previousLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() - 1);
+            // TODO: this should not happen
+            /*
+            if (previousLedgerId == null) {
+                return lastConfirmedEntry.getNext();
+            }
+            */
+            skippedPosition = PositionImpl.get(previousLedgerId, LATEST.entryId);
+        }
+        return skippedPosition;
+    }
+
     public PositionImpl getNextValidPosition(final PositionImpl position) {
         return getValidPositionAfterSkippedEntries(position, 1);
     }
+
     public PositionImpl getValidPositionAfterSkippedEntries(final PositionImpl position, int skippedEntryNum) {
         PositionImpl skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
         while (!isValidPosition(skippedPosition)) {

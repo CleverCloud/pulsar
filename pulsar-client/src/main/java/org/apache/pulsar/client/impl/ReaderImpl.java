@@ -72,6 +72,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionInitialPosition(readerConfiguration.getSubscriptionInitialPosition());
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+        consumerConfiguration.setReadReverse(readerConfiguration.isReadReverse());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
 
         // chunking configuration

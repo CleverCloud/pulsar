@@ -301,6 +301,15 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean readCompacted = false;
 
     @ApiModelProperty(
+            name = "readReverse",
+            value = "If enabling `readReverse`, a consumer reads messages from startMessageId to past messages"
+                    + "of a topic.\n"
+                    + "Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions "
+                    + "leads to a subscription call throwing a `PulsarClientException`."
+    )
+    private boolean readReverse = false;
+
+    @ApiModelProperty(
             name = "subscriptionInitialPosition",
             value = "Initial position at which to set cursor when subscribing to a topic at first time."
     )

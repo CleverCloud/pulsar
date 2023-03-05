@@ -131,6 +131,14 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private boolean readCompacted = false;
 
     @ApiModelProperty(
+            name = "readReverse",
+            value = "If enabling `readReverse`, a consumer reads messages from startMessageId to the oldest message"
+                    + "of a topic.\n"
+                    + "`readReverse` can only be enabled on subscriptions to persistent topics."
+    )
+    private boolean readReverse = false;
+
+    @ApiModelProperty(
             name = "resetIncludeHead",
             value = "If set to true, the first message to be returned is the one specified by `messageId`.\n"
                     + "\n"

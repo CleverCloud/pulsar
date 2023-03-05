@@ -131,7 +131,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
-    protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
+    protected volatile MessageId lastDequeuedMessageId;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
     private final long lookupDeadline;
@@ -169,6 +169,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
+    private final boolean readReverse;
     private final boolean resetIncludeHead;
 
     private final SubscriptionInitialPosition subscriptionInitialPosition;
@@ -273,6 +274,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.parentConsumerHasListener = parentConsumerHasListener;
         this.priorityLevel = conf.getMatchingTopicConfiguration(topic).getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
+        this.readReverse = conf.isReadReverse();
+        this.lastDequeuedMessageId = this.readReverse ? MessageId.latest : MessageId.earliest;
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
         this.resetIncludeHead = conf.isResetIncludeHead();
@@ -822,7 +825,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             setClientCnx(cnx);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
-                    conf.isReplicateSubscriptionState(),
+                    readReverse, conf.isReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
                     // Use the current epoch to subscribe.
@@ -2214,8 +2217,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
+        if (readReverse && hasMorePreviousMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
+            System.out.println(hasMorePreviousMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead));
+            completehasMessageAvailableWithValue(booleanFuture, true);
+            return booleanFuture;
+        }
+
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
+
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
             if (MessageId.latest.equals(startMessageId)) {
@@ -2311,6 +2321,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         return !inclusive && lastMessageIdInBroker.compareTo(messageId) > 0
                 && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() != -1;
+    }
+
+    private boolean hasMorePreviousMessages(MessageId lastMessageIdInBroker, MessageId messageId, boolean inclusive) {
+        if (inclusive && lastMessageIdInBroker.compareTo(messageId) < 0
+                && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() == -1) {
+            return true;
+        }
+
+        return !inclusive && lastMessageIdInBroker.compareTo(messageId) <= 0
+                && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() == -1;
     }
 
     private static final class GetLastMessageIdResponse {
