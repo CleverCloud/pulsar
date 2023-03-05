@@ -168,20 +168,6 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     @Override
-    public Message<T> readPrevious() throws PulsarClientException {
-        Message<T> msg = consumer.receivePrevious();
-
-        // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
-        // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-            log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                    getConsumer().getSubscription(), msg.getMessageId(), ex);
-            return null;
-        });
-        return msg;
-    }
-
-    @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> msg = consumer.receive(timeout, unit);
 
