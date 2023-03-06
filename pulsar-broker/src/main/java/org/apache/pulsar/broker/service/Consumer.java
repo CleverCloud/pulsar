@@ -82,6 +82,7 @@ public class Consumer {
     private final long consumerId;
     private final int priorityLevel;
     private final boolean readCompacted;
+    private final boolean readReverse;
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
@@ -147,6 +148,15 @@ public class Consumer {
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
                     KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName, isDurable, cnx, appId,
+                metadata, readCompacted, false, keySharedMeta, startMessageId, consumerEpoch);
+    }
+
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted, boolean readReverse,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -155,6 +165,7 @@ public class Consumer {
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
+        this.readReverse = readReverse;
         this.consumerName = consumerName;
         this.isDurable = isDurable;
         this.keySharedMeta = keySharedMeta;
@@ -217,6 +228,7 @@ public class Consumer {
         this.consumerId = 0L;
         this.priorityLevel = 0;
         this.readCompacted = false;
+        this.readReverse = false;
         this.consumerName = consumerName;
         this.msgOut = null;
         this.msgRedeliver = null;
@@ -256,6 +268,10 @@ public class Consumer {
 
     public boolean readCompacted() {
         return readCompacted;
+    }
+
+    public boolean readReverse() {
+        return readReverse;
     }
 
     public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,

@@ -34,12 +34,15 @@ import org.slf4j.LoggerFactory;
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     private final boolean readCompacted;
+    private final boolean readReverse;
+    private PositionImpl initialPosition;
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
                          PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
-                         boolean isReadCompacted) {
+                         boolean isReadCompacted, boolean readReverse) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
+        this.readReverse = readReverse;
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
@@ -56,20 +59,42 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             }
         } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
-            recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
+            if (readReverse) {
+                recoverReverseCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
+            } else {
+                recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
+            }
         } else {
             // Since the cursor is positioning on the mark-delete position, we need to take 1 step back from the desired
             // read-position
-            recoverCursor(startCursorPosition);
+            if (readReverse) {
+                recoverReverseCursor(startCursorPosition);
+            } else {
+                recoverCursor(startCursorPosition);
+            }
         }
         STATE_UPDATER.set(this, State.Open);
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
                 readPosition, markDeletePosition);
     }
 
+    void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
+        readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
+        ledger.onCursorReadPositionUpdated(this, readPosition);
+        markDeletePosition = lastPositionCounter.getLeft();
+        lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, getProperties(), null, null);
+        persistentMarkDeletePosition = null;
+        inProgressMarkDeletePersistPosition = null;
+
+        // Initialize the counter such that the difference between the messages written on the ML and the
+        // messagesConsumed is 0, to ensure the initial backlog count is 0.
+        messagesConsumedCounter = lastPositionCounter.getRight();
+    }
+
     private void recoverCursor(PositionImpl mdPosition) {
         Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
         this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
+        this.initialPosition = this.readPosition;
         markDeletePosition = mdPosition;
 
         // Initialize the counter such that the difference between the messages written on the ML and the
@@ -81,6 +106,51 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         } else {
             log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
                 mdPosition, readPosition);
+        }
+    }
+
+    private void recoverReverseCursor(PositionImpl mdPosition) {
+        Pair<PositionImpl, Long> firstEntryAndCounter = ledger.getFirstPositionAndCounter();
+        this.readPosition = isReadCompacted() ? mdPosition.getPrevious() : ledger.getPreviousPosition(mdPosition);
+        this.initialPosition = this.readPosition;
+        markDeletePosition = mdPosition;
+
+        // Initialize the counter such that the difference between the messages written on the ML and the
+        // messagesConsumed is equal to the current backlog (negated).
+        if (null != this.readPosition) {
+            messagesConsumedCounter = readPosition.compareTo(firstEntryAndCounter.getLeft()) > 0
+                    ? ledger.getNumberOfEntries(Range.closed(firstEntryAndCounter.getLeft(), readPosition)) : 0;
+        } else {
+            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
+                    mdPosition, readPosition);
+        }
+    }
+
+    @Override
+    public long getNumberOfEntriesInBacklog(boolean isPrecise) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Consumer {} cursor ml-entries: {} -- deleted-counter: {} other counters: mdPos {} rdPos {}",
+                    ledger.getName(), this.getName(), this.initialPosition, messagesConsumedCounter, markDeletePosition,
+                    readPosition);
+        }
+        if (isPrecise) {
+            if (readReverse) {
+                return getNumberOfEntries(Range.open(ledger.getFirstPosition(), markDeletePosition));
+            } else {
+                return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+            }
+        }
+
+        // TODO: Let's store backlog number info in RAM. Currently, we get it precisely.
+        if (readReverse) {
+            return getNumberOfEntries(Range.open(ledger.getFirstPosition(), markDeletePosition));
+        } else {
+            long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
+            if (backlog < 0) {
+                // In some case the counters get incorrect values, fall back to the precise backlog count
+                backlog = getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+            }
+            return backlog;
         }
     }
 
@@ -130,7 +200,19 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // we couldn't reset the read position to the next valid position of the original topic.
         // Otherwise, the remaining data in the compacted ledger will be skipped.
         if (!readCompacted) {
-            super.rewind();
+            lock.writeLock().lock();
+            try {
+                PositionImpl newReadPosition = ledger.getPreviousValidPosition(markDeletePosition);
+                PositionImpl oldReadPosition = readPosition;
+
+                log.info("[{}-{}] Rewind from {} to {}", ledger.getName(), this.getName(), oldReadPosition,
+                        newReadPosition);
+
+                readPosition = newReadPosition;
+                ledger.onCursorReadPositionUpdated(NonDurableCursorImpl.this, newReadPosition);
+            } finally {
+                lock.writeLock().unlock();
+            }
         } else {
             readPosition = markDeletePosition.getNext();
         }
@@ -138,8 +220,9 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     @Override
     public synchronized String toString() {
-        return MoreObjects.toStringHelper(this).add("ledger", ledger.getName()).add("ackPos", markDeletePosition)
-                .add("readPos", readPosition).toString();
+        return MoreObjects.toStringHelper(this).add("ledger", ledger.getName())
+                .add("ackPos", markDeletePosition).add("readPos", readPosition)
+                .add("readReverse", readReverse).toString();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonDurableCursorImpl.class);

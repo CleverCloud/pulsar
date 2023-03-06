@@ -46,6 +46,7 @@ class OpReadEntry implements ReadEntriesCallback {
     private List<Entry> entries;
     private PositionImpl nextReadPosition;
     PositionImpl maxPosition;
+    PositionImpl minPosition;
 
     Predicate<PositionImpl> skipCondition;
 

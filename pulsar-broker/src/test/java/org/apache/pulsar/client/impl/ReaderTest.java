@@ -127,6 +127,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testReadReverseMessageWithoutBatching() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic";
+        testReadReverseMessages(topic, false);
+    }
+
+    @Test
     public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
         Set<String> keys = publishMessages(topic, 10, false);
@@ -181,6 +187,33 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                                 .readerName(subscription + "latest").create();
         Assert.assertFalse(readLatest.hasMessageAvailable());
+    }
+
+    private void testReadReverseMessages(String topic, boolean enableBatch) throws Exception {
+        int numKeys = 13;
+
+        // publish <numKeys> message named "my-message-<counter>"
+        Set<String> keys = publishMessages(topic, numKeys, enableBatch);
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .readReverse(true)
+                .readerName(subscription)
+                .create();
+
+        System.out.println("lesgo");
+        while (reader.hasMessageAvailable()) {
+            Message<byte[]> message = reader.readNext();
+            System.out.println(new String(message.getData()));
+            System.out.println("hasPrevious ? " + reader.hasMessageAvailable());
+            Assert.assertTrue(keys.remove(message.getKey()));
+        }
+        Assert.assertTrue(keys.isEmpty());
+        reader.close();
+
+        Reader<byte[]> readEarliest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
+                .readerName(subscription + "latest").create();
+        Assert.assertFalse(readEarliest.hasMessageAvailable());
     }
 
     @Test

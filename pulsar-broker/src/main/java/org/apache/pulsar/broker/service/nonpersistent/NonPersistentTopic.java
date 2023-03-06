@@ -253,7 +253,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
-                option.isReadCompacted(),
+                option.isReadCompacted(), option.isReadReverse(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null));
     }
@@ -267,7 +267,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
+                isDurable, startMessageId, metadata, readCompacted, false, resetStartMessageBackInSec,
+                replicateSubscriptionState, keySharedMeta, null);
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
+                                                 SubType subType, int priorityLevel, String consumerName,
+                                                 boolean isDurable, MessageId startMessageId,
+                                                 Map<String, String> metadata, boolean readCompacted,
+                                                 boolean readReverse, InitialPosition initialPosition,
+                                                 long resetStartMessageBackInSec, boolean replicateSubscriptionState,
+                                                 KeySharedMeta keySharedMeta) {
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, readReverse, resetStartMessageBackInSec,
                 replicateSubscriptionState, keySharedMeta, null);
     }
 
@@ -275,7 +288,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           long consumerId, SubType subType, int priorityLevel,
                                                           String consumerName, boolean isDurable,
                                                           MessageId startMessageId, Map<String, String> metadata,
-                                                          boolean readCompacted,
+                                                          boolean readCompacted, boolean readReverse,
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
@@ -304,6 +317,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 return future;
             }
 
+            if (readReverse) {
+                future.completeExceptionally(new NotAllowedException("readReverse only valid on persistent topics"));
+                return future;
+            }
+
             lock.readLock().lock();
             try {
                 if (isFenced) {
@@ -321,7 +339,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     name -> new NonPersistentSubscription(this, subscriptionName, isDurable, subscriptionProperties));
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta,
+                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, readReverse, keySharedMeta,
                     MessageId.latest, DEFAULT_CONSUMER_EPOCH);
             if (isMigrated()) {
                 consumer.topicMigrated(getClusterMigrationUrl());

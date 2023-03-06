@@ -201,7 +201,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // Maintain the deletion status for batch messages
     // (ledgerId, entryId) -> deletion indexes
     private final ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    protected final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
     // The cursor is considered "dirty" when there are mark-delete updates that are only applied in memory,
@@ -2401,8 +2401,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     List<Entry> filterReadEntries(List<Entry> entries) {
         lock.readLock().lock();
         try {
-            Range<PositionImpl> entriesRange = Range.closed((PositionImpl) entries.get(0).getPosition(),
-                    (PositionImpl) entries.get(entries.size() - 1).getPosition());
+            Range<PositionImpl> entriesRange = Range.closed(
+                    (PositionImpl) entries.get(entries.size() - 1).getPosition(),
+                    (PositionImpl) entries.get(0).getPosition());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);

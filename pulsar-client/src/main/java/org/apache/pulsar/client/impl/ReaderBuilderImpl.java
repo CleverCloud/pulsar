@@ -205,6 +205,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> readReverse(boolean readReverse) {
+        conf.setReadReverse(readReverse);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> keyHashRange(Range... ranges) {
         checkArgument(ranges != null && ranges.length > 0,
                 "Cannot specify a null ofr an empty key hash ranges for a reader");

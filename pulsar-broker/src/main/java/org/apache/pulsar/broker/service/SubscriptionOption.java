@@ -43,6 +43,7 @@ public class SubscriptionOption {
     private MessageId startMessageId;
     private Map<String, String> metadata;
     private boolean readCompacted;
+    private boolean readReverse;
     private CommandSubscribe.InitialPosition initialPosition;
     private long startMessageRollbackDurationSec;
     private boolean replicatedSubscriptionStateArg;
