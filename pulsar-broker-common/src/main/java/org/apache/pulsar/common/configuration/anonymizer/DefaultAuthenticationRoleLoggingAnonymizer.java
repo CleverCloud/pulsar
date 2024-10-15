@@ -55,7 +55,7 @@ public final class DefaultAuthenticationRoleLoggingAnonymizer {
    public DefaultAuthenticationRoleLoggingAnonymizer(String authenticationRoleLoggingAnonymizer) {
       if (authenticationRoleLoggingAnonymizer.startsWith("hash:")) {
          anonymizerType = DefaultRoleAnonymizerType.valueOf(authenticationRoleLoggingAnonymizer
-                 .substring("hash:".length()));
+                 .substring("hash:".length()).toUpperCase());
       } else {
          anonymizerType = DefaultRoleAnonymizerType.valueOf(authenticationRoleLoggingAnonymizer);
       }
