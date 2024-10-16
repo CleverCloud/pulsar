@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.anonymizer;
+package org.apache.pulsar.common.configuration.anonymizer;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -61,6 +61,7 @@ public enum DefaultRoleAnonymizerType {
       {
          // Initializing the MessageDigest once for MD5
          try {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case&
             digest = MessageDigest.getInstance("MD5");
          } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("MD5 algorithm not found", e);

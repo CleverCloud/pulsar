@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.anonymizer;
+package org.apache.pulsar.common.configuration.anonymizer;
 
-import static org.apache.pulsar.common.util.anonymizer.DefaultRoleAnonymizerType.NONE;
+import static org.apache.pulsar.common.configuration.anonymizer.DefaultRoleAnonymizerType.NONE;
 
 /**
  * This class provides a utility to anonymize authentication roles before logging,
