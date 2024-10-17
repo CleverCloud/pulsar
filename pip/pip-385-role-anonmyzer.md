@@ -1,4 +1,4 @@
-# PIP-XXX: Role Anonymizer for Pulsar Logging
+# PIP-385: Role Anonymizer for Pulsar Logging
 
 # Background knowledge
 
